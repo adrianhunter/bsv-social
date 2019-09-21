@@ -16,6 +16,7 @@
     "ts-runtime": "^0.2.0"
   },
   "devDependencies": {
+    "browserify": "^16.5.0",
     "watch": "^1.0.2"
   }
 }
