@@ -1,0 +1,17 @@
+{
+  "name": "contracts",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "browserify index.js -o ./playground/build.js",
+    "start": "http-server ./playground"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "http-server": "^0.11.1",
+    "runtypes": "^4.0.1",
+    "ts-runtime": "^0.2.0"
+  }
+}
