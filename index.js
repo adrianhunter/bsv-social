@@ -1,3 +1,5 @@
+const Buffer = require('buffer').Buffer
+
 class t {
   static safeString(a) {
     if (typeof a !== 'string') {
@@ -34,6 +36,10 @@ class Like extends Jig {
     }
     this.likedJig = likedJig 
     this.liked = true
+  }
+
+  destroy(){
+    this.owner = '000000000000000000000000000000000000000000000000000000000000000000'
   }
 
 }
@@ -107,6 +113,7 @@ Like.deps = {Post, Comment}
 Post.deps = { t, App, Comment, Like };
 Comment.deps = {Like}
 
+
 async function main() {
   const run = new Run({ network: 'mock', app: 'bucksup' });
 
@@ -119,7 +126,6 @@ async function main() {
   const comment = post.comment({ content: 'this is my comment' });
   const likeComment = comment.like()
 
-  const message = new Message({ content: 'Hello, Paul' })
 
   const profile = new UserProfile({
     username: 'Merlin'
@@ -128,7 +134,19 @@ async function main() {
     username: 'Adrian'
   })
 
-    console.log(app, post, like, comment);
+  const alice = bsvEcies()
+    .privateKey(run.purse.privkey)
+    .publicKey(bsv.PublicKey.fromString(recipient.owner));
+
+  const message = new Message({ recipient: recipient.owner, content: alice.encrypt('Hello, Paul').toString("hex") })
+
+  const bob = bsvEcies()
+    .privateKey(run.purse.privkey)
+    .publicKey(bsv.PublicKey.fromString(message.owner));
+
+  const receivedMessage = bob.decrypt(Buffer.from(message.content, "hex")).toString()
+  
+  console.log(receivedMessage)
 }
 
 main();
