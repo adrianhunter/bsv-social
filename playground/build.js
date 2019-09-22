@@ -1,158 +1,4 @@
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
-const Buffer = require('buffer').Buffer
-
-class t {
-  static safeString(a) {
-    if (typeof a !== 'string') {
-      throw new Error('must be string');
-    }
-    return a;
-  }
-}
-
-
-class UserProfile extends Jig {
-
-  init({username, profilePicture, bio, status}) {    
-    this.username = t.safeString(username);
-    this.profilePicture = profilePicture;
-    this.bio = bio;
-    if (profilePicture) {
-      this.setProfilePicture(profilePicture);
-    }
-    this.status = status;
-  }
-  
-}
-
-
-UserProfile.deps = {t}
-
-
-class Like extends Jig {
-  
-  init({likedJig}) {
-    if(likedJig.constructor !== Post && likedJig.constructor !== Comment) {
-      throw new Error('can only like posts or comments')
-    }
-    this.likedJig = likedJig 
-    this.liked = true
-  }
-
-  destroy(){
-    this.owner = '000000000000000000000000000000000000000000000000000000000000000000'
-  }
-
-}
-
-class Post extends Jig {
-
-  init({ content, app }) {
-    this._maxPostLength = 500;
-    if (app.constructor !== App)
-      throw new Error('can only create post from app context');
-    content = t.safeString(content);
-    if (content.length > this._maxPostLength) {
-      throw new Error(`max post length is ${this._maxPostLength}`);
-    }
-    this.app = app;
-    this.content = content;
-    this.status = 'published'
-  }
-
-  comment({ content }) {
-    return new Comment({ content, app: this.app, replyTo: this });
-  }
-
-  like() {
-    return new Like({likedJig: this})
-  }
-
-  delete() {
-    this.state = 'deleted'
-  }
-}
-
-class Retweet extends Post {
-  init({ post, ...opts }) {
-    this.post = post;
-    super.init(opts);
-  }
-}
-
-class Comment extends Post {
-  init({ content, app, replyTo }) {
-    if (replyTo.constructor !== Post) {
-      throw new Error('replyTo must be instance of Post');
-    }
-    super.init({ content, app });
-    this.replyTo = replyTo;
-  }
-}
-
-class Message extends Jig {
-  init({ recipient, content, isEncrypted }) {
-    this.recipient = recipient;
-    this.content = content;
-    this.isEncrypted = isEncrypted;
-  }
-}
-
-class App extends Jig {
-  init(name) {
-    this.name = name;
-  }
-
-  createPost({ content }) {
-    return new Post({ content, app: this });
-  }
-}
-
-App.deps = { Post };
-Like.deps = {Post, Comment}
-
-Post.deps = { t, App, Comment, Like };
-Comment.deps = {Like}
-
-
-async function main() {
-  const run = new Run({ network: 'mock', app: 'bucksup' });
-
-  const app = new App('bucksup');
-  window.app = app;
-  window.Post = Post;
-
-  const post = app.createPost({ content: 'wow dude' });
-  const like = post.like()
-  const comment = post.comment({ content: 'this is my comment' });
-  const likeComment = comment.like()
-
-
-  const profile = new UserProfile({
-    username: 'Merlin'
-  })
-  const recipient = new UserProfile({
-    username: 'Adrian'
-  })
-
-  const alice = bsvEcies()
-    .privateKey(run.purse.privkey)
-    .publicKey(bsv.PublicKey.fromString(recipient.owner));
-
-  const message = new Message({ recipient: recipient.owner, content: alice.encrypt('Hello, Paul').toString("hex") })
-
-  const bob = bsvEcies()
-    .privateKey(run.purse.privkey)
-    .publicKey(bsv.PublicKey.fromString(message.owner));
-
-  const receivedMessage = bob.decrypt(Buffer.from(message.content, "hex")).toString()
-  
-  console.log(receivedMessage)
-}
-
-main();
-
-},{"buffer":3}],2:[function(require,module,exports){
 'use strict'
 
 exports.byteLength = byteLength
@@ -306,7 +152,7 @@ function fromByteArray (uint8) {
   return parts.join('')
 }
 
-},{}],3:[function(require,module,exports){
+},{}],2:[function(require,module,exports){
 (function (Buffer){
 /*!
  * The buffer module from node.js, for the browser.
@@ -1378,7 +1224,7 @@ function hexSlice (buf, start, end) {
 
   var out = ''
   for (var i = start; i < end; ++i) {
-    out += hexSliceLookupTable[buf[i]]
+    out += toHex(buf[i])
   }
   return out
 }
@@ -1964,6 +1810,11 @@ function base64clean (str) {
   return str
 }
 
+function toHex (n) {
+  if (n < 16) return '0' + n.toString(16)
+  return n.toString(16)
+}
+
 function utf8ToBytes (string, units) {
   units = units || Infinity
   var codePoint
@@ -2094,22 +1945,8 @@ function numberIsNaN (obj) {
   return obj !== obj // eslint-disable-line no-self-compare
 }
 
-// Create lookup table for `toString('hex')`
-// See: https://github.com/feross/buffer/issues/219
-var hexSliceLookupTable = (function () {
-  var alphabet = '0123456789abcdef'
-  var table = new Array(256)
-  for (var i = 0; i < 16; ++i) {
-    var i16 = i * 16
-    for (var j = 0; j < 16; ++j) {
-      table[i16 + j] = alphabet[i] + alphabet[j]
-    }
-  }
-  return table
-})()
-
 }).call(this,require("buffer").Buffer)
-},{"base64-js":2,"buffer":3,"ieee754":4}],4:[function(require,module,exports){
+},{"base64-js":1,"buffer":2,"ieee754":3}],3:[function(require,module,exports){
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
   var eLen = (nBytes * 8) - mLen - 1
@@ -2195,4 +2032,158 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}]},{},[1]);
+},{}],4:[function(require,module,exports){
+const Buffer = require('buffer').Buffer
+
+class t {
+  static safeString(a) {
+    if (typeof a !== 'string') {
+      throw new Error('must be string');
+    }
+    return a;
+  }
+}
+
+
+class UserProfile extends Jig {
+
+  init({username, profilePicture, bio, status}) {    
+    this.username = t.safeString(username);
+    this.profilePicture = profilePicture;
+    this.bio = bio;
+    if (profilePicture) {
+      this.setProfilePicture(profilePicture);
+    }
+    this.status = status;
+  }
+  
+}
+
+
+UserProfile.deps = {t}
+
+
+class Like extends Jig {
+  
+  init({likedJig}) {
+    if(likedJig.constructor !== Post && likedJig.constructor !== Comment) {
+      throw new Error('can only like posts or comments')
+    }
+    this.likedJig = likedJig 
+    this.liked = true
+  }
+
+  destroy(){
+    this.owner = '000000000000000000000000000000000000000000000000000000000000000000'
+  }
+
+}
+
+class Post extends Jig {
+
+  init({ content, app }) {
+    this._maxPostLength = 500;
+    if (app.constructor !== App)
+      throw new Error('can only create post from app context');
+    content = t.safeString(content);
+    if (content.length > this._maxPostLength) {
+      throw new Error(`max post length is ${this._maxPostLength}`);
+    }
+    this.app = app;
+    this.content = content;
+    this.status = 'published'
+  }
+
+  comment({ content }) {
+    return new Comment({ content, app: this.app, replyTo: this });
+  }
+
+  like() {
+    return new Like({likedJig: this})
+  }
+
+  delete() {
+    this.state = 'deleted'
+  }
+}
+
+class Retweet extends Post {
+  init({ post, ...opts }) {
+    this.post = post;
+    super.init(opts);
+  }
+}
+
+class Comment extends Post {
+  init({ content, app, replyTo }) {
+    if (replyTo.constructor !== Post) {
+      throw new Error('replyTo must be instance of Post');
+    }
+    super.init({ content, app });
+    this.replyTo = replyTo;
+  }
+}
+
+class Message extends Jig {
+  init({ recipient, content, isEncrypted }) {
+    this.recipient = recipient;
+    this.content = content;
+    this.isEncrypted = isEncrypted;
+  }
+}
+
+class App extends Jig {
+  init(name) {
+    this.name = name;
+  }
+
+  createPost({ content }) {
+    return new Post({ content, app: this });
+  }
+}
+
+App.deps = { Post };
+Like.deps = {Post, Comment}
+
+Post.deps = { t, App, Comment, Like };
+Comment.deps = {Like}
+
+
+async function main() {
+  const run = new Run({ network: 'mock', app: 'bucksup' });
+
+  const app = new App('bucksup');
+  window.app = app;
+  window.Post = Post;
+
+  const post = app.createPost({ content: 'wow dude' });
+  const like = post.like()
+  const comment = post.comment({ content: 'this is my comment' });
+  const likeComment = comment.like()
+
+
+  const profile = new UserProfile({
+    username: 'Merlin'
+  })
+  const recipient = new UserProfile({
+    username: 'Adrian'
+  })
+
+  const alice = bsvEcies()
+    .privateKey(run.purse.privkey)
+    .publicKey(bsv.PublicKey.fromString(recipient.owner));
+
+  const message = new Message({ recipient: recipient.owner, content: alice.encrypt('Hello, Paul').toString("hex") })
+
+  const bob = bsvEcies()
+    .privateKey(run.purse.privkey)
+    .publicKey(bsv.PublicKey.fromString(message.owner));
+
+  const receivedMessage = bob.decrypt(Buffer.from(message.content, "hex")).toString()
+  
+  console.log(receivedMessage)
+}
+
+main();
+
+},{"buffer":2}]},{},[4]);
